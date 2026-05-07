@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from clean_searcher import find_emails
 from dashboard_styles import get_dashboard_styles
 from keywords_module import show_keywords_interface
 from location_module import show_location_interface

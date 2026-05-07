@@ -8,8 +8,7 @@ import stripe
 import streamlit as st
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from auth import get_user_profile, get_current_user
-from supabase import create_client
+from auth import get_user_profile, get_current_user, init_database
 
 load_dotenv()
 
@@ -19,14 +18,6 @@ STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 ANNUAL_PRICE_ID = "price_1RTdKxQszO6ybCSk2aytrX1n"  # $20 annual subscription
 
-# Initialize Supabase
-@st.cache_resource
-def init_supabase():
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
-    if not url or not key:
-        return None
-    return create_client(url, key)
 
 def create_stripe_customer(user_email, user_name=""):
     """Create a Stripe customer for the user"""
@@ -394,9 +385,11 @@ def get_subscription_analytics():
             'trial_remaining': 999999
         }
     
+    conn = None
+    cursor = None
     try:
-        supabase = init_supabase()
-        if not supabase:
+        conn = init_database()
+        if not conn:
             return {
                 'monthly_searches': 0,
                 'total_searches': profile.get('total_searches', 0),
@@ -404,26 +397,30 @@ def get_subscription_analytics():
                 'trial_remaining': profile.get('searches_remaining', 0)
             }
 
-        # Get search count this month
-        current_month = datetime.now().strftime('%Y-%m')
-        
-        searches = supabase.table('search_history').select('*').eq('user_id', profile['id']).gte('created_at', f'{current_month}-01').execute()
-        
-        monthly_searches = len(searches.data) if searches.data else 0
-        total_searches = profile.get('total_searches', 0)
-        
+        cursor = conn.cursor()
+        month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        cursor.execute(
+            "SELECT COUNT(*) FROM search_history WHERE user_id = %s AND created_at >= %s",
+            (profile['id'], month_start),
+        )
+        monthly_searches = cursor.fetchone()[0]
+
         return {
             'monthly_searches': monthly_searches,
-            'total_searches': total_searches,
+            'total_searches': profile.get('total_searches', 0),
             'subscription_status': profile.get('subscription_status'),
             'trial_remaining': profile.get('trial_searches_remaining', 0)
         }
-        
-    except Exception as e:
-        # Return clean defaults instead of showing error messages
+
+    except Exception:
         return {
             'monthly_searches': 0,
             'total_searches': 0,
             'subscription_status': profile.get('subscription_status', 'trial'),
             'trial_remaining': profile.get('trial_searches_remaining', 10)
         }
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()

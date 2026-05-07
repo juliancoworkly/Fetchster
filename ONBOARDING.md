@@ -63,8 +63,8 @@ DATABASE_URL=<paste from Julian — Neon Postgres connection string>
 FETCHSTER_PASSWORD=<the shared site password>
 ```
 
-Leave `SUPABASE_URL`, `SUPABASE_KEY`, and the Stripe keys blank — they're
-only used for the payment flows that aren't wired up internally.
+Leave the Stripe keys blank — they're only used for the payment flows that
+aren't wired up internally.
 
 The DB is shared with Julian's instance, so any searches you save here will
 also be visible to him (and vice versa). That's intentional — internal team
