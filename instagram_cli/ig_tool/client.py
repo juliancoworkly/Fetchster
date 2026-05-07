@@ -126,7 +126,8 @@ class IGClient:
         return result
 
     def search_users(self, keyword: str, limit: int = 20) -> list[UserSummary]:
-        results = self._call("search_users", self.client.search_users, keyword, limit)
+        # instagrapi's search_users takes only `query` — we cap with results[:limit] below.
+        results = self._call("search_users", self.client.search_users, keyword)
         return [
             UserSummary(
                 pk=str(u.pk),
