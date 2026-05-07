@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.local
+.env.*.local
+.streamlit/secrets.toml
+
+# Claude Code session state — never commit.
+.claude/
+
+# Instagram CLI runtime data (sessions, cache).
+instagram_cli/data/
+instagram_cli/.venv/
+
+# OS / editor noise.
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

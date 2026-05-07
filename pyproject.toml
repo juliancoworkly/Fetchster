@@ -1,7 +1,7 @@
 [project]
-name = "repl-nix-workspace"
+name = "fetchster"
 version = "0.1.0"
-description = "Add your description here"
+description = "Streamlit email discovery and lead generation app using Serper.dev."
 requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.13.4",
@@ -18,4 +18,41 @@ dependencies = [
     "psycopg2-binary>=2.9.10",
     "anthropic>=0.53.0",
     "flask>=3.1.1",
+    "python-dotenv>=1.2.1",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = [
+    "api_engine",
+    "app",
+    "auth",
+    "clean_searcher",
+    "complete_location_data",
+    "connection_manager",
+    "dashboard_styles",
+    "footer",
+    "fresh_search",
+    "keywords_module",
+    "location_data",
+    "location_module",
+    "location_ui_components",
+    "location_utils",
+    "login_page",
+    "login_styles",
+    "new_search_engine",
+    "payments",
+    "pricing_page",
+    "progress_module",
+    "search_engine",
+    "search_history",
+    "search_interface",
+    "search_limits",
+    "search_options_module",
+    "search_styles",
+    "streamlined_search",
+    "webhook_handler",
 ]

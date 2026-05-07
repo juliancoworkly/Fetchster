@@ -9,6 +9,9 @@ import stripe
 import psycopg2
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -44,6 +47,8 @@ def stripe_webhook():
                         cur.execute("""
                             UPDATE user_profiles 
                             SET subscription_status = 'active',
+                                subscription_type = 'annual',
+                                searches_remaining = 999999,
                                 subscription_activated_at = %s,
                                 subscription_expires_at = %s,
                                 stripe_customer_id = %s

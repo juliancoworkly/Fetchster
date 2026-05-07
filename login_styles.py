@@ -2,262 +2,232 @@
 Login page CSS styles - separated for clean code organization
 """
 
+
 def get_login_styles():
-    """Return all CSS styles specific to the login page"""
+    """Return all CSS styles specific to the login page."""
     return """
     <style>
-    /* LOGIN PAGE STYLES */
-    
-    /* Main container and background */
     .stApp {
-        background-color: #000000;
+        background: #050505;
         color: #ffffff;
     }
-    
-    /* Tab styling for Sign In / Create Account */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 0px;
-        background-color: transparent;
-        border-bottom: none;
-        justify-content: center;
-        margin-bottom: 2rem;
+
+    .block-container {
+        max-width: 1180px;
+        padding-top: 2.25rem;
+        padding-bottom: 2rem;
     }
-    
-    .stTabs [data-baseweb="tab"] {
-        background-color: transparent;
-        color: #ffffff;
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        border-radius: 20px;
-        padding: 12px 24px;
-        margin: 0 5px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background-color: #dc2626;
-        color: #ffffff;
-        border-color: rgba(255, 255, 255, 0.5);
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.5);
-    }
-    
-    /* Remove tab underlines */
-    .stTabs [data-baseweb="tab-border"] {
+
+    [data-testid="stHeader"],
+    .stDeployButton,
+    footer {
         display: none;
+        visibility: hidden;
     }
-    
+
+    .auth-hero {
+        padding-top: 1.25rem;
+    }
+
+    .auth-kicker {
+        color: #ff4d4d;
+        font-weight: 700;
+        letter-spacing: 0;
+        margin: 0 0 0.75rem 0;
+        text-transform: uppercase;
+    }
+
+    .auth-hero h1 {
+        font-size: 3rem;
+        line-height: 1.05;
+        letter-spacing: 0;
+        margin: 0 0 1rem 0;
+        max-width: 560px;
+    }
+
+    .auth-lede {
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 1.05rem;
+        line-height: 1.6;
+        margin: 0 0 1.5rem 0;
+        max-width: 560px;
+    }
+
+    .auth-facts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin: 0 0 1.25rem 0;
+        max-width: 560px;
+    }
+
+    .auth-facts div {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        background: #151515;
+        padding: 0.9rem;
+    }
+
+    .auth-facts strong,
+    .auth-facts span {
+        display: block;
+    }
+
+    .auth-facts strong {
+        color: #ffffff;
+        margin-bottom: 0.25rem;
+    }
+
+    .auth-facts span,
+    .auth-benefits {
+        color: rgba(255, 255, 255, 0.68);
+    }
+
+    .auth-benefits {
+        line-height: 1.8;
+        margin: 0;
+        padding-left: 1.1rem;
+    }
+
+    .auth-panel-title {
+        color: rgba(255, 255, 255, 0.74);
+        font-weight: 700;
+        margin: 0.25rem 0 0.9rem 0;
+        text-transform: uppercase;
+    }
+
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        background: #141414;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        color: #ffffff;
+        font-weight: 600;
+        padding: 0.75rem 1rem;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: #dc2626;
+        border-color: #ef4444;
+    }
+
+    .stTabs [data-baseweb="tab-border"],
     .stTabs [data-baseweb="tab-highlight"] {
         display: none;
     }
-    
-    /* Input field styling - transparent containers */
-    .stTextInput > div {
-        background: transparent !important;
-        border: none !important;
-    }
-    
-    .stTextInput > div > div {
-        background: transparent !important;
-        border: 1px solid rgba(255, 255, 255, 0.25) !important;
-        border-radius: 20px !important;
-        padding: 0.5rem 1rem !important;
-        color: #ffffff !important;
-        transition: all 0.3s ease !important;
-        position: relative !important;
-    }
-    
-    .stTextInput > div > div > input {
-        background: transparent !important;
-        background-color: transparent !important;
-        border: none !important;
-        color: #ffffff !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-    }
-    
-    /* Focus states */
-    .stTextInput > div > div:focus-within {
-        border-color: rgba(255, 255, 255, 0.5) !important;
-        background-color: transparent !important;
-    }
-    
-    /* Remove all outer container borders */
+
     .stForm {
-        background: transparent !important;
-        border: none !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        border-radius: 8px !important;
+        background: #101010 !important;
+        padding: 1rem !important;
     }
-    
-    .element-container {
-        background: transparent !important;
-        border: none !important;
-    }
-    
-    /* Password visibility button styling - centered in input */
-    button[kind="secondary"] {
-        background: transparent !important;
-        border: none !important;
-        color: rgba(255, 255, 255, 0.7) !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        width: auto !important;
-        height: auto !important;
-        padding: 4px !important;
-        margin: 0 4px !important;
-        position: absolute !important;
-        right: 8px !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        z-index: 1000 !important;
-    }
-    
-    button[kind="secondary"]:hover {
-        color: rgba(255, 255, 255, 1) !important;
-    }
-    
-    /* Text input button visibility fixes */
-    .stTextInput button,
-    div[data-testid*="textInput"] button,
-    div[data-testid*="password"] button {
-        background: transparent !important;
-        border: none !important;
-        color: rgba(255, 255, 255, 0.7) !important;
-        display: inline-block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        width: auto !important;
-        height: auto !important;
-        min-width: 24px !important;
-        min-height: 24px !important;
-        overflow: visible !important;
-    }
-    
-    /* Container visibility */
-    .stTextInput > div,
+
     .stTextInput > div > div {
-        overflow: visible !important;
-        position: relative !important;
+        background: #090909 !important;
+        border: 1px solid rgba(255, 255, 255, 0.18) !important;
+        border-radius: 8px !important;
+        color: #ffffff !important;
+        min-height: 2.75rem;
     }
-    
-    /* Submit button - identical to Sign In/Create Account with red background */
-    button[kind="primary"],
-    .stButton > button[kind="primary"],
-    button[data-testid="baseButton-primary"],
-    form button[kind="primary"],
-    .stForm button[kind="primary"],
-    div[data-testid="stForm"] button[kind="primary"],
-    div[data-testid="stForm"] .stButton button[kind="primary"],
-    form[data-testid="form"] button[kind="primary"] {
-        background-color: #dc2626 !important;
+
+    div[data-testid="stTextInput"] div[data-testid="stTextInputRootElement"],
+    div[data-testid="stTextInput"] [data-baseweb="input"],
+    div[data-testid="stTextInput"] [data-baseweb="input"] > div,
+    div[data-testid="stTextInput"] [data-baseweb="input"] > div:last-child {
+        background: #090909 !important;
+        background-color: #090909 !important;
+    }
+
+    .stTextInput > div > div:focus-within {
+        border-color: #ef4444 !important;
+        box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.28) !important;
+    }
+
+    .stTextInput input {
+        color: #ffffff !important;
+    }
+
+    .stTextInput button,
+    .stTextInput button[aria-label="Show password text"] {
+        background: transparent !important;
+        background-color: transparent !important;
+        border: none !important;
+        color: rgba(255, 255, 255, 0.7) !important;
+        min-height: 1.75rem !important;
+        padding: 0.25rem !important;
+    }
+
+    .stTextInput button:hover,
+    .stTextInput button[aria-label="Show password text"]:hover {
+        background: transparent !important;
+        background-color: transparent !important;
+        color: #ffffff !important;
+    }
+
+    [data-testid="stWidgetLabel"] p {
+        color: rgba(255, 255, 255, 0.76) !important;
+    }
+
+    .stCheckbox label {
+        color: rgba(255, 255, 255, 0.78) !important;
+    }
+
+    .stButton > button,
+    div[data-testid="stFormSubmitButton"] button {
+        border-radius: 8px !important;
+        min-height: 2.75rem !important;
+        font-weight: 600 !important;
+    }
+
+    div[data-testid="stFormSubmitButton"] button {
         background: #dc2626 !important;
-        border: 1px solid rgba(255, 255, 255, 0.25) !important;
-        border-radius: 20px !important;
+        border: 1px solid #ef4444 !important;
         color: #ffffff !important;
-        font-weight: 500 !important;
-        transition: all 0.3s ease !important;
-        padding: 0.5rem 1rem !important;
-        height: 3rem !important;
-        min-height: 3rem !important;
-        font-size: 1rem !important;
-        width: auto !important;
     }
-    
-    /* Submit button hover - slight darkening */
-    button[kind="primary"]:hover,
-    .stButton > button[kind="primary"]:hover,
-    button[data-testid="baseButton-primary"]:hover,
-    form button[kind="primary"]:hover,
-    .stForm button[kind="primary"]:hover,
-    div[data-testid="stForm"] button[kind="primary"]:hover,
-    div[data-testid="stForm"] .stButton button[kind="primary"]:hover,
-    form[data-testid="form"] button[kind="primary"]:hover {
-        background-color: #b91c1c !important;
+
+    div[data-testid="stFormSubmitButton"] button:hover {
         background: #b91c1c !important;
-        border-color: rgba(255, 255, 255, 0.25) !important;
+        border-color: #f87171 !important;
     }
-    
-    /* Center Submit button */
-    div[data-testid="stForm"] .stButton {
-        display: flex !important;
-        justify-content: center !important;
-        width: 100% !important;
-    }
-    
-    /* Text link buttons (non-primary) */
-    .stButton > button:not([kind="primary"]) {
-        background-color: transparent !important;
-        border: none !important;
-        border-radius: 0px !important;
-        color: #ffffff !important;
-        transition: all 0.3s ease;
-        padding: 8px 16px !important;
-        text-decoration: none !important;
-    }
-    
-    .stButton > button:not([kind="primary"]):hover {
-        background-color: transparent !important;
-        border: none !important;
-        color: #dc2626 !important;
-        text-decoration: none !important;
-    }
-    
-    /* Forgot password button styling */
-    button[kind="secondary"] {
+
+    .stButton > button {
         background: transparent !important;
-        border: none !important;
+        border: 1px solid rgba(255, 255, 255, 0.16) !important;
         color: #ffffff !important;
-        font-size: 1em !important;
-        transition: color 0.3s ease !important;
-        padding: 8px 0 !important;
-        text-align: center !important;
-        width: 100% !important;
-        box-shadow: none !important;
-        outline: none !important;
     }
-    
-    button[kind="secondary"]:hover {
-        color: #dc2626 !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
+
+    .stButton > button:hover {
+        border-color: rgba(255, 255, 255, 0.34) !important;
+        color: #ff6666 !important;
     }
-    
-    button[kind="secondary"]:focus {
-        border: none !important;
-        box-shadow: none !important;
-        outline: none !important;
-    }
-    
-    /* General element styling */
-    .element-container, .stMarkdown, .stDataFrame {
-        border-radius: 20px;
-    }
-    
+
     .stAlert {
-        border-radius: 20px;
+        border-radius: 8px !important;
     }
-    
-    /* Hide Streamlit branding */
-    .stDeployButton {
-        display: none;
+
+    .auth-footer {
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        margin-top: 2rem;
+        padding-top: 1rem;
     }
-    
-    footer {
-        visibility: hidden;
-    }
-    
-    .stApp > header {
-        display: none;
-    }
-    
-    [data-testid="stHeader"] {
-        display: none;
+
+    @media (max-width: 820px) {
+        .block-container {
+            padding-top: 1.25rem;
+        }
+
+        .auth-hero h1 {
+            font-size: 2.25rem;
+        }
+
+        .auth-facts {
+            grid-template-columns: 1fr;
+        }
     }
     </style>
     """

@@ -1,0 +1,20 @@
+# Credentials and persisted state — never commit.
+.env
+data/
+*.sqlite
+*.sqlite-journal
+session.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS
+.DS_Store
+Thumbs.db

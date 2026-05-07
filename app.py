@@ -7,8 +7,11 @@ import json
 import os
 import time
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from clean_searcher import find_emails
-from login_page import show_auth_interface
 from dashboard_styles import get_dashboard_styles
 from keywords_module import show_keywords_interface
 from location_module import show_location_interface
@@ -391,8 +394,8 @@ def show_search_interface():
     
     # Header
     st.markdown("# Welcome to Fetchster")
-    st.markdown("**Google Maps and Search email harvesting tool**")
-    
+    st.markdown("**Email harvesting and social discovery — internal tool**")
+
     # Tour starter for new users
     if not st.session_state.get('onboarding_complete', False) and not st.session_state.get('show_tour', False):
         col1, col2 = st.columns([3, 1])
@@ -402,40 +405,41 @@ def show_search_interface():
             if st.button("Start Tour", key="main_tour_button"):
                 start_onboarding_tour()
                 st.rerun()
-    
-    # Main interface using modular components
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        # Keywords interface
-        keyword = show_keywords_interface()
-        
-        # Location interface  
-        location = show_location_interface()
-    
-    with col2:
-        # Search options interface
-        search_options = show_search_options_interface()
-        
-        # Progress interface
-        show_progress_interface()
-    
-    # Store search parameters in session state for the search interface
-    st.session_state.search_keywords = keyword
-    st.session_state.search_locations = location
-    st.session_state.search_options = search_options
-    
-    # Streamlined search implementation
-    st.markdown("---")
-    from streamlined_search import show_streamlined_search_interface, show_search_results
-    
-    show_streamlined_search_interface()
-    show_search_results()
-    
-    # Access to recent searches - moved to bottom
-    st.markdown("---")
-    st.markdown("### Access to Recent Searches")
-    show_recent_searches_panel()
+
+    tab_google, tab_instagram = st.tabs(["Google (email harvesting)", "Instagram"])
+
+    with tab_google:
+        # Main interface using modular components
+        col1, col2 = st.columns([1, 1])
+
+        with col1:
+            keyword = show_keywords_interface()
+            location = show_location_interface()
+
+        with col2:
+            search_options = show_search_options_interface()
+            show_progress_interface()
+
+        # Store search parameters in session state for the search interface
+        st.session_state.search_keywords = keyword
+        st.session_state.search_locations = location
+        st.session_state.search_options = search_options
+
+        # Streamlined search implementation
+        st.markdown("---")
+        from streamlined_search import show_streamlined_search_interface, show_search_results
+
+        show_streamlined_search_interface()
+        show_search_results()
+
+        # Access to recent searches - moved to bottom
+        st.markdown("---")
+        st.markdown("### Access to Recent Searches")
+        show_recent_searches_panel()
+
+    with tab_instagram:
+        from instagram_module import show_instagram_interface
+        show_instagram_interface()
 
 # OLD SEARCH FUNCTIONS REMOVED - NOW USING FRESH IMPLEMENTATION
 
@@ -536,6 +540,32 @@ def show_privacy_policy():
         st.session_state.show_privacy = False
         st.rerun()
 
+def _site_password_gate() -> bool:
+    """Render a single-password gate. Returns True once unlocked."""
+    if st.session_state.get("site_unlocked"):
+        return True
+
+    expected = os.environ.get("FETCHSTER_PASSWORD", "")
+    if not expected:
+        # No password configured → gate is open. Useful for local dev.
+        st.session_state.site_unlocked = True
+        return True
+
+    st.markdown("# Fetchster")
+    st.markdown("Internal access. Enter the shared password to continue.")
+    pw = st.text_input("Password", type="password", key="site_pw_input")
+    col_a, _ = st.columns([1, 5])
+    with col_a:
+        submitted = st.button("Enter", type="primary")
+    if submitted:
+        if pw == expected:
+            st.session_state.site_unlocked = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+    return False
+
+
 def main():
     """Main application entry point"""
     st.set_page_config(
@@ -548,28 +578,39 @@ def main():
     # Initialize session state
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
-    
-    # Handle page navigation (before authentication check)
+
+    # Site-level password gate. The shared password is read from
+    # FETCHSTER_PASSWORD; if unset, falls back to a default for local dev.
+    if not _site_password_gate():
+        return
+
+    # After the gate, populate session state with a synthetic admin user so the
+    # downstream code (search history, can_perform_search, etc.) keeps working.
+    if not st.session_state.authenticated:
+        st.session_state.authenticated = True
+        st.session_state.user_email = "internal@fetchster.local"
+        st.session_state.user_name = "Internal User"
+        st.session_state.subscription_type = "lifetime"
+        st.session_state.subscription_status = "active"
+        st.session_state.searches_remaining = 10**9
+        st.session_state.total_searches = 0
+        st.session_state.is_admin = True
+
+    # Handle page navigation
     if st.session_state.get('show_terms', False):
         show_terms_of_service()
         return
-    
+
     if st.session_state.get('show_privacy', False):
         show_privacy_policy()
         return
-    
+
     if st.session_state.get('show_pricing', False):
         from pricing_page import show_pricing_page
         show_pricing_page()
         return
-    
-    # Handle payment callbacks first (before authentication check)
+
     handle_payment_callback()
-    
-    # Check authentication
-    if not is_authenticated():
-        show_auth_interface()
-        return
     
     # Main application flow
     if st.session_state.get('show_subscription', False):

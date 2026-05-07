@@ -11,66 +11,193 @@ from datetime import datetime, timedelta
 import hashlib
 import secrets
 from cryptography.fernet import Fernet
+from dotenv import load_dotenv
 import base64
 import json
 
-# Initialize PostgreSQL connection
-def init_database():
+load_dotenv()
+
+DEFAULT_TRIAL_SEARCHES = 3
+ADMIN_EMAILS = {
+    email.strip().lower()
+    for email in os.environ.get("FETCHSTER_ADMIN_EMAILS", "admin@fetchster.io").split(",")
+    if email.strip()
+}
+
+
+def is_admin_email(email: str) -> bool:
+    """Return True when the email is configured as an admin account."""
+    return (email or "").strip().lower() in ADMIN_EMAILS
+
+
+def get_database_url():
+    """Return the configured PostgreSQL URL."""
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         st.error("Database connection not found.")
         return None
+    return database_url
+
+
+def ensure_database_schema(conn):
+    """Create or update the minimal PostgreSQL schema required by the app."""
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_profiles (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                full_name TEXT,
+                subscription_type TEXT NOT NULL DEFAULT 'trial',
+                subscription_status TEXT NOT NULL DEFAULT 'trial',
+                searches_remaining INTEGER NOT NULL DEFAULT 3,
+                total_searches INTEGER NOT NULL DEFAULT 0,
+                api_key_encrypted TEXT,
+                stripe_customer_id TEXT,
+                subscription_activated_at TIMESTAMPTZ,
+                subscription_expires_at TIMESTAMPTZ,
+                login_token TEXT,
+                login_token_expires TIMESTAMPTZ,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_keywords (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+                keyword TEXT NOT NULL,
+                is_recent BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS user_keywords_user_keyword_idx
+            ON user_keywords (user_id, keyword)
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS search_history (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+                keyword TEXT NOT NULL,
+                location TEXT,
+                results_count INTEGER NOT NULL DEFAULT 0,
+                results_data JSONB NOT NULL DEFAULT '[]'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS activation_keys (
+                key TEXT PRIMARY KEY,
+                subscription_type TEXT NOT NULL DEFAULT 'lifetime',
+                customer_email TEXT,
+                used BOOLEAN NOT NULL DEFAULT FALSE,
+                used_by INTEGER REFERENCES user_profiles(id) ON DELETE SET NULL,
+                used_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS search_history_user_created_idx
+            ON search_history (user_id, created_at DESC)
+        """)
+        cursor.execute("""
+            ALTER TABLE user_profiles
+            ADD COLUMN IF NOT EXISTS password_hash TEXT,
+            ADD COLUMN IF NOT EXISTS full_name TEXT,
+            ADD COLUMN IF NOT EXISTS subscription_type TEXT NOT NULL DEFAULT 'trial',
+            ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT 'trial',
+            ADD COLUMN IF NOT EXISTS searches_remaining INTEGER NOT NULL DEFAULT 3,
+            ADD COLUMN IF NOT EXISTS total_searches INTEGER NOT NULL DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS api_key_encrypted TEXT,
+            ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT,
+            ADD COLUMN IF NOT EXISTS subscription_activated_at TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS login_token TEXT,
+            ADD COLUMN IF NOT EXISTS login_token_expires TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        """)
+        cursor.execute("""
+            ALTER TABLE user_keywords
+            ADD COLUMN IF NOT EXISTS is_recent BOOLEAN NOT NULL DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        """)
+        cursor.execute("""
+            ALTER TABLE search_history
+            ADD COLUMN IF NOT EXISTS location TEXT,
+            ADD COLUMN IF NOT EXISTS results_count INTEGER NOT NULL DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS results_data JSONB NOT NULL DEFAULT '[]'::jsonb,
+            ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        """)
+        cursor.execute("""
+            ALTER TABLE activation_keys
+            ADD COLUMN IF NOT EXISTS subscription_type TEXT NOT NULL DEFAULT 'lifetime',
+            ADD COLUMN IF NOT EXISTS customer_email TEXT,
+            ADD COLUMN IF NOT EXISTS used BOOLEAN NOT NULL DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS used_by INTEGER REFERENCES user_profiles(id) ON DELETE SET NULL,
+            ADD COLUMN IF NOT EXISTS used_at TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        """)
+
+
+# Initialize PostgreSQL connection
+def init_database():
+    database_url = get_database_url()
+    if not database_url:
+        return None
+
     try:
         conn = psycopg2.connect(database_url)
         conn.autocommit = True
+        ensure_database_schema(conn)
         create_admin_account_if_needed(conn)
         return conn
     except Exception as e:
         st.error(f"Database connection failed: {e}")
         return None
 
+
+def get_db_connection():
+    """Compatibility wrapper for older code paths."""
+    return init_database()
+
+
 def create_admin_account_if_needed(conn):
-    """Create admin accounts with lifetime access if they don't exist"""
+    """Create one bootstrap admin account when env credentials are provided."""
+    admin_email = os.environ.get("FETCHSTER_BOOTSTRAP_ADMIN_EMAIL")
+    admin_password = os.environ.get("FETCHSTER_BOOTSTRAP_ADMIN_PASSWORD")
+    admin_name = os.environ.get("FETCHSTER_BOOTSTRAP_ADMIN_NAME", "Fetchster Admin")
+
+    if not admin_email or not admin_password:
+        return
+
     try:
         cursor = conn.cursor()
-        
-        # Admin accounts to create
-        admin_accounts = [
-            {
-                "email": "admin@fetchster.io",
-                "password": "*F7940531r!?!*",
-                "name": "Fetchster Admin"
-            },
-            {
-                "email": "henry@team-coworkly.com",
-                "password": "julianisawesome",
-                "name": "Henry Admin"
-            }
-        ]
-        
-        for admin in admin_accounts:
-            # Check if admin account exists
-            cursor.execute("SELECT id FROM user_profiles WHERE email = %s", (admin["email"],))
-            if cursor.fetchone():
-                continue
-            
-            # Create admin account with hashed password
-            password_hash = hashlib.sha256(admin["password"].encode()).hexdigest()
-            
-            cursor.execute("""
-                INSERT INTO user_profiles (email, password_hash, full_name, subscription_type, 
-                                         searches_remaining, total_searches)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (
-                admin["email"],
-                password_hash,
-                admin["name"],
-                "lifetime",  # Lifetime access
-                999999,  # Unlimited searches
-                0  # Starting search count
-            ))
-            
-            print(f"Admin account created successfully: {admin['email']}")
+        cursor.execute("SELECT id FROM user_profiles WHERE email = %s", (admin_email,))
+        if cursor.fetchone():
+            cursor.close()
+            return
+
+        password_hash = hashlib.sha256(admin_password.encode()).hexdigest()
+
+        cursor.execute("""
+            INSERT INTO user_profiles (
+                email, password_hash, full_name, subscription_type,
+                subscription_status, searches_remaining, total_searches
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            admin_email,
+            password_hash,
+            admin_name,
+            "lifetime",
+            "active",
+            999999,
+            0
+        ))
+
+        print(f"Bootstrap admin account created successfully: {admin_email}")
         
         cursor.close()
         
@@ -333,9 +460,12 @@ def register_user(email: str, password: str, full_name: str = ""):
         
         # Insert new user
         cursor.execute("""
-            INSERT INTO user_profiles (email, password_hash, full_name, subscription_type, searches_remaining)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (email, password_hash, full_name, 'trial', 3))
+            INSERT INTO user_profiles (
+                email, password_hash, full_name, subscription_type,
+                subscription_status, searches_remaining
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (email, password_hash, full_name, 'trial', 'trial', DEFAULT_TRIAL_SEARCHES))
         
         return True, "Registration successful"
     except Exception as e:
@@ -359,7 +489,7 @@ def login_user(email: str, password: str, remember_me: bool = False):
         password_hash = hashlib.sha256(password.encode()).hexdigest()
         
         cursor.execute("""
-            SELECT id, email, full_name, subscription_type, searches_remaining, total_searches
+            SELECT id, email, full_name, subscription_type, searches_remaining, total_searches, subscription_status
             FROM user_profiles 
             WHERE email = %s AND password_hash = %s
         """, (email, password_hash))
@@ -370,23 +500,22 @@ def login_user(email: str, password: str, remember_me: bool = False):
             user_id = result[0]
             
             # Clear any existing session state first
-            for key in ['authenticated', 'user_email', 'user_name', 'subscription_type', 'searches_remaining', 'total_searches', 'is_admin']:
+            for key in ['authenticated', 'user_id', 'user_email', 'user_name', 'subscription_type', 'subscription_status', 'searches_remaining', 'total_searches', 'is_admin']:
                 if key in st.session_state:
                     del st.session_state[key]
             
             # Set new session state
             st.session_state.authenticated = True
+            st.session_state.user_id = user_id
             st.session_state.user_email = result[1]
             st.session_state.user_name = result[2] or "User"
             st.session_state.subscription_type = result[3]
             st.session_state.searches_remaining = result[4]
             st.session_state.total_searches = result[5]
+            st.session_state.subscription_status = result[6] or "trial"
             
             # Check for admin access
-            if email == "admin@fetchster.io":
-                st.session_state.is_admin = True
-            else:
-                st.session_state.is_admin = False
+            st.session_state.is_admin = is_admin_email(email)
             
             # Handle remember me functionality
             if remember_me:
@@ -419,7 +548,11 @@ def login_user(email: str, password: str, remember_me: bool = False):
 
 def logout_user():
     """Logout user"""
-    for key in ['authenticated', 'user_email', 'user_name', 'subscription_type', 'searches_remaining', 'total_searches', 'is_admin']:
+    for key in [
+        'authenticated', 'user_id', 'user_email', 'user_name', 'subscription_type',
+        'subscription_status', 'searches_remaining', 'total_searches', 'is_admin',
+        'saved_email', 'login_token', 'remember_me'
+    ]:
         if key in st.session_state:
             del st.session_state[key]
 
@@ -444,7 +577,7 @@ def check_auto_login():
         
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, email, full_name, subscription_type, searches_remaining, total_searches
+            SELECT id, email, full_name, subscription_type, searches_remaining, total_searches, subscription_status
             FROM user_profiles 
             WHERE email = %s AND login_token = %s AND login_token_expires > CURRENT_TIMESTAMP
         """, (saved_email, login_token))
@@ -454,17 +587,16 @@ def check_auto_login():
         if result:
             # Auto-login successful
             st.session_state.authenticated = True
+            st.session_state.user_id = result[0]
             st.session_state.user_email = result[1]
             st.session_state.user_name = result[2] or "User"
             st.session_state.subscription_type = result[3]
             st.session_state.searches_remaining = result[4]
             st.session_state.total_searches = result[5]
+            st.session_state.subscription_status = result[6] or "trial"
             
             # Check for admin access
-            if saved_email == "admin@fetchster.io":
-                st.session_state.is_admin = True
-            else:
-                st.session_state.is_admin = False
+            st.session_state.is_admin = is_admin_email(saved_email)
                 
     except Exception as e:
         # Clear invalid saved credentials
@@ -491,9 +623,11 @@ def get_current_user():
         return None
     
     return {
+        'id': st.session_state.get('user_id'),
         'email': st.session_state.get('user_email'),
         'name': st.session_state.get('user_name'),
         'subscription_type': st.session_state.get('subscription_type'),
+        'subscription_status': st.session_state.get('subscription_status'),
         'searches_remaining': st.session_state.get('searches_remaining'),
         'total_searches': st.session_state.get('total_searches')
     }
@@ -510,7 +644,9 @@ def can_perform_search():
     subscription_type = st.session_state.get('subscription_type', 'trial')
     searches_remaining = st.session_state.get('searches_remaining', 0)
     
-    if subscription_type in ['lifetime', 'monthly']:
+    subscription_status = st.session_state.get('subscription_status', 'trial')
+
+    if subscription_status == 'active' or subscription_type in ['lifetime', 'monthly', 'annual', 'professional']:
         return True, "Search allowed"
     elif searches_remaining > 0:
         return True, f"Trial searches remaining: {searches_remaining}"
@@ -664,16 +800,24 @@ def activate_subscription(activation_key: str, subscription_type: str = 'lifetim
         if subscription_type == 'lifetime':
             cursor.execute("""
                 UPDATE user_profiles 
-                SET subscription_type = %s, subscription_expires_at = NULL
-                WHERE user_id = %s
-            """, (subscription_type, user_id))
+                SET subscription_type = %s,
+                    subscription_status = 'active',
+                    searches_remaining = 999999,
+                    subscription_expires_at = NULL,
+                    updated_at = %s
+                WHERE id = %s
+            """, (subscription_type, datetime.now(), user_id))
         else:
             expires_at = datetime.now() + timedelta(days=30)
             cursor.execute("""
                 UPDATE user_profiles 
-                SET subscription_type = %s, subscription_expires_at = %s
-                WHERE user_id = %s
-            """, (subscription_type, expires_at, user_id))
+                SET subscription_type = %s,
+                    subscription_status = 'active',
+                    searches_remaining = 999999,
+                    subscription_expires_at = %s,
+                    updated_at = %s
+                WHERE id = %s
+            """, (subscription_type, expires_at, datetime.now(), user_id))
         
         # Mark activation key as used
         cursor.execute("""
@@ -689,6 +833,9 @@ def activate_subscription(activation_key: str, subscription_type: str = 'lifetim
         if 'user_profile' not in st.session_state:
             st.session_state.user_profile = {}
         st.session_state.user_profile['subscription_type'] = subscription_type
+        st.session_state.subscription_type = subscription_type
+        st.session_state.subscription_status = 'active'
+        st.session_state.searches_remaining = 999999
         
         return True, f"Subscription activated successfully! You now have {subscription_type} access."
         

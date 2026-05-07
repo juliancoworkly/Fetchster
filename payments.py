@@ -7,8 +7,11 @@ import os
 import stripe
 import streamlit as st
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 from auth import get_user_profile, get_current_user
 from supabase import create_client
+
+load_dotenv()
 
 # Initialize Stripe
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
@@ -21,17 +24,20 @@ ANNUAL_PRICE_ID = "price_1RTdKxQszO6ybCSk2aytrX1n"  # $20 annual subscription
 def init_supabase():
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_KEY")
+    if not url or not key:
+        return None
     return create_client(url, key)
 
 def create_stripe_customer(user_email, user_name=""):
     """Create a Stripe customer for the user"""
     try:
+        current_user = get_current_user()
         customer = stripe.Customer.create(
             email=user_email,
             name=user_name,
             metadata={
                 'source': 'email_scraper_saas',
-                'user_id': get_current_user().id if get_current_user() else ''
+                'user_id': current_user.get('id', '') if current_user else ''
             }
         )
         return customer
@@ -117,6 +123,8 @@ def verify_payment_and_upgrade_user(session_id):
                     cur.execute("""
                         UPDATE user_profiles 
                         SET subscription_status = 'active',
+                            subscription_type = 'annual',
+                            searches_remaining = 999999,
                             subscription_activated_at = %s,
                             subscription_expires_at = %s,
                             stripe_customer_id = %s
@@ -131,8 +139,13 @@ def verify_payment_and_upgrade_user(session_id):
                     conn.commit()
                     
                     # Update session state if it's the current user  
+                    st.session_state.subscription_status = 'active'
+                    st.session_state.subscription_type = 'annual'
+                    st.session_state.searches_remaining = 999999
                     if 'user_profile' in st.session_state:
                         st.session_state.user_profile['subscription_status'] = 'active'
+                        st.session_state.user_profile['subscription_type'] = 'annual'
+                        st.session_state.user_profile['searches_remaining'] = 999999
                         st.session_state.user_profile['subscription_activated_at'] = datetime.now().isoformat()
                         st.session_state.user_profile['subscription_expires_at'] = (datetime.now() + timedelta(days=365)).isoformat()
                     
@@ -303,6 +316,8 @@ def handle_stripe_webhook(payload, sig_header):
                         cur.execute("""
                             UPDATE user_profiles 
                             SET subscription_status = 'active',
+                                subscription_type = 'annual',
+                                searches_remaining = 999999,
                                 subscription_activated_at = %s,
                                 subscription_expires_at = %s,
                                 stripe_customer_id = %s
@@ -379,9 +394,16 @@ def get_subscription_analytics():
             'trial_remaining': 999999
         }
     
-    supabase = init_supabase()
-    
     try:
+        supabase = init_supabase()
+        if not supabase:
+            return {
+                'monthly_searches': 0,
+                'total_searches': profile.get('total_searches', 0),
+                'subscription_status': profile.get('subscription_status', 'trial'),
+                'trial_remaining': profile.get('searches_remaining', 0)
+            }
+
         # Get search count this month
         current_month = datetime.now().strftime('%Y-%m')
         
