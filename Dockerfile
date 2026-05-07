@@ -14,6 +14,7 @@ COPY pyproject.toml README.md ./
 COPY *.py ./
 COPY .streamlit ./.streamlit
 COPY privacy_policy.md terms_and_conditions.md ./
+COPY instagram_cli ./instagram_cli
 
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir .
