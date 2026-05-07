@@ -15,6 +15,15 @@ venv/
 instagram_cli/data/
 instagram_cli/.venv/
 
+# Filled-in deployment configs (real Stripe/DB secrets).
+# The committed template is cloudrun.env.example.yaml.
+cloudrun.env.yaml
+cloudrun.env.*.yaml
+!cloudrun.env.example.yaml
+
+# graphify analysis output (per-checkout, regenerated on demand).
+graphify-out/
+
 # OS / editor noise.
 .DS_Store
 Thumbs.db

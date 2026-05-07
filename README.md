@@ -49,12 +49,21 @@ You can also create or reset an admin account directly:
 
 - PostgreSQL via `DATABASE_URL`
 - Stripe keys for paid subscription flows
-- Optional Supabase keys for legacy subscription analytics
 - Serper.dev API key, stored per user after login
 
 ## Cloud Run Deployment
 
 Fetchster can run on Cloud Run with the included `Dockerfile`.
+
+First copy the env template and fill in real values (the filled-in copy is
+gitignored — never commit it):
+
+```bash
+cp cloudrun.env.example.yaml cloudrun.env.yaml
+# edit cloudrun.env.yaml — set DATABASE_URL, STRIPE_*, REPLIT_DOMAINS, etc.
+```
+
+Then deploy:
 
 ```bash
 gcloud run deploy fetchster \
