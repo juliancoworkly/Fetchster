@@ -1,13 +1,16 @@
 """Create or update a local Fetchster admin account."""
 
 import argparse
-import hashlib
 import os
+import sys
+from pathlib import Path
 
 import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 def parse_args():
@@ -24,9 +27,9 @@ def main():
     if not args.database_url:
         raise SystemExit("DATABASE_URL is required.")
 
-    from auth import ensure_database_schema
+    from auth import ensure_database_schema, hash_password
 
-    password_hash = hashlib.sha256(args.password.encode()).hexdigest()
+    password_hash = hash_password(args.password)
 
     conn = psycopg2.connect(args.database_url)
     conn.autocommit = True

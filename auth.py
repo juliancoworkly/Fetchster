@@ -24,6 +24,34 @@ ADMIN_EMAILS = {
     if email.strip()
 }
 
+PBKDF2_ITERATIONS = 600_000
+
+
+def hash_password(password: str) -> str:
+    """Hash a password with PBKDF2-HMAC-SHA256 and a random per-user salt."""
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, PBKDF2_ITERATIONS)
+    return f"pbkdf2_sha256${PBKDF2_ITERATIONS}${salt.hex()}${digest.hex()}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Verify a password against a stored hash. Accepts legacy plain-SHA256 hashes."""
+    if not stored_hash:
+        return False
+    if stored_hash.startswith("pbkdf2_sha256$"):
+        try:
+            _, iters_s, salt_hex, digest_hex = stored_hash.split("$", 3)
+            actual = hashlib.pbkdf2_hmac(
+                "sha256", password.encode(), bytes.fromhex(salt_hex), int(iters_s)
+            )
+            return secrets.compare_digest(actual, bytes.fromhex(digest_hex))
+        except (ValueError, TypeError):
+            return False
+    if len(stored_hash) == 64 and all(c in "0123456789abcdefABCDEF" for c in stored_hash):
+        legacy = hashlib.sha256(password.encode()).hexdigest()
+        return secrets.compare_digest(legacy, stored_hash.lower())
+    return False
+
 
 def is_admin_email(email: str) -> bool:
     """Return True when the email is configured as an admin account."""
@@ -179,7 +207,7 @@ def create_admin_account_if_needed(conn):
             cursor.close()
             return
 
-        password_hash = hashlib.sha256(admin_password.encode()).hexdigest()
+        password_hash = hash_password(admin_password)
 
         cursor.execute("""
             INSERT INTO user_profiles (
@@ -203,10 +231,6 @@ def create_admin_account_if_needed(conn):
         
     except Exception as e:
         print(f"Failed to create admin accounts: {e}")
-
-def get_encryption_key():
-    """Generate or retrieve encryption key for API keys"""
-    return base64.urlsafe_b64encode(b'encryption_key_32_bytes_long_12')[:32]
 
 def encrypt_api_key(api_key: str, user_id: str) -> str:
     """Encrypt API key with user-specific encryption"""
@@ -456,8 +480,8 @@ def register_user(email: str, password: str, full_name: str = ""):
             return False, "User already exists"
         
         # Hash password
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        
+        password_hash = hash_password(password)
+
         # Insert new user
         cursor.execute("""
             INSERT INTO user_profiles (
@@ -466,7 +490,8 @@ def register_user(email: str, password: str, full_name: str = ""):
             )
             VALUES (%s, %s, %s, %s, %s, %s)
         """, (email, password_hash, full_name, 'trial', 'trial', DEFAULT_TRIAL_SEARCHES))
-        
+        conn.commit()
+
         return True, "Registration successful"
     except Exception as e:
         return False, f"Registration failed: {e}"
@@ -486,18 +511,26 @@ def login_user(email: str, password: str, remember_me: bool = False):
             return False, "Database connection failed"
         
         cursor = conn.cursor()
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        
+
         cursor.execute("""
-            SELECT id, email, full_name, subscription_type, searches_remaining, total_searches, subscription_status
-            FROM user_profiles 
-            WHERE email = %s AND password_hash = %s
-        """, (email, password_hash))
-        
+            SELECT id, email, full_name, subscription_type, searches_remaining, total_searches, subscription_status, password_hash
+            FROM user_profiles
+            WHERE email = %s
+        """, (email,))
+
         result = cursor.fetchone()
-        
-        if result:
+
+        if result and verify_password(password, result[7]):
             user_id = result[0]
+            stored_hash = result[7]
+
+            # Upgrade legacy SHA256 hashes to PBKDF2 on successful login
+            if not stored_hash.startswith("pbkdf2_sha256$"):
+                cursor.execute(
+                    "UPDATE user_profiles SET password_hash = %s WHERE id = %s",
+                    (hash_password(password), user_id),
+                )
+                conn.commit()
             
             # Clear any existing session state first
             for key in ['authenticated', 'user_id', 'user_email', 'user_name', 'subscription_type', 'subscription_status', 'searches_remaining', 'total_searches', 'is_admin']:
