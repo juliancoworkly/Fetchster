@@ -170,20 +170,39 @@ def ensure_database_schema(conn):
 
 
 # Initialize PostgreSQL connection
-def init_database():
+@st.cache_resource
+def _cached_db_connection():
+    """Build the DB connection once per process and reuse across reruns.
+
+    Without caching, every Streamlit page render reopens the connection and
+    re-runs the schema bootstrap — that adds ~hundreds of ms per render and
+    is the dominant cause of perceived slowness.
+    """
     database_url = get_database_url()
     if not database_url:
         return None
-
     try:
         conn = psycopg2.connect(database_url)
         conn.autocommit = True
         ensure_database_schema(conn)
         create_admin_account_if_needed(conn)
         return conn
-    except Exception as e:
-        st.error(f"Database connection failed: {e}")
+    except Exception:  # noqa: BLE001 — surfaced via init_database() below
         return None
+
+
+def init_database():
+    conn = _cached_db_connection()
+    if conn is None:
+        st.error("Database connection failed. Check DATABASE_URL.")
+        # Drop the cached None so the next page load can retry.
+        _cached_db_connection.clear()
+        return None
+    if conn.closed:
+        # Server-side timeout / network drop — invalidate and reconnect once.
+        _cached_db_connection.clear()
+        conn = _cached_db_connection()
+    return conn
 
 
 def get_db_connection():

@@ -9,16 +9,18 @@ dependencies = [
     "pandas>=2.2.3",
     "plotly>=6.1.1",
     "requests>=2.32.3",
-    "streamlit-authenticator>=0.4.2",
     "streamlit>=1.45.1",
     "trafilatura>=2.0.0",
     "stripe>=12.1.0",
     "cryptography>=45.0.3",
     "psycopg2-binary>=2.9.10",
     "anthropic>=0.53.0",
-    "flask>=3.1.1",
     "python-dotenv>=1.2.1",
+    "instagrapi>=2.5.0",
 ]
+
+[tool.setuptools.packages.find]
+include = ["instagram_cli*"]
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -30,7 +32,6 @@ py-modules = [
     "app",
     "auth",
     "complete_location_data",
-    "connection_manager",
     "dashboard_styles",
     "footer",
     "instagram_module",
@@ -39,7 +40,6 @@ py-modules = [
     "location_module",
     "location_ui_components",
     "location_utils",
-    "login_page",
     "login_styles",
     "new_search_engine",
     "payments",
@@ -50,5 +50,4 @@ py-modules = [
     "search_options_module",
     "search_styles",
     "streamlined_search",
-    "webhook_handler",
 ]

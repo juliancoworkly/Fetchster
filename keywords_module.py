@@ -2,7 +2,7 @@
 Keywords management module - separated for clean code organization
 """
 import streamlit as st
-from auth import save_user_keywords, get_user_keywords, save_recent_keyword, get_recent_keywords
+from auth import save_user_keywords, get_user_keywords
 from search_styles import get_search_styles
 
 def show_keywords_interface():

@@ -1,12 +1,11 @@
 """
 Clean Streamlit app for email searching - no duplicated functionality
 """
-import streamlit as st
-import pandas as pd
-import json
 import os
-import time
 from datetime import datetime
+
+import pandas as pd
+import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,16 +16,11 @@ from location_module import show_location_interface
 from search_options_module import show_search_options_interface
 from progress_module import show_progress_interface
 from auth import (
-    is_authenticated, 
-    logout_user, 
+    logout_user,
     get_user_profile,
     can_perform_search,
-    update_search_count,
-    save_search_history,
-    get_user_api_key,
-    save_recent_keyword,
     get_user_search_history,
-    activate_subscription
+    activate_subscription,
 )
 from payments import show_pricing_cards, handle_payment_callback
 from footer import show_clean_footer
@@ -274,29 +268,6 @@ def show_analytics_dashboard():
     display_df = df[['keyword', 'location', 'results_count', 'created_at']].head(10)
     st.dataframe(display_df, use_container_width=True)
 
-def show_tour_step(step_number, title, content):
-    """Display a tour step with explanation"""
-    st.info(f"**Step {step_number}: {title}**\n\n{content}")
-
-def start_onboarding_tour():
-    """Start the interactive onboarding tour"""
-    st.session_state.show_tour = True
-    st.session_state.tour_step = 1
-
-def next_tour_step():
-    """Move to the next tour step"""
-    current_step = st.session_state.get('tour_step', 1)
-    if current_step < 6:
-        st.session_state.tour_step = current_step + 1
-    else:
-        complete_tour()
-
-def complete_tour():
-    """Complete the onboarding tour"""
-    st.session_state.show_tour = False
-    st.session_state.tour_step = 0
-    st.session_state.onboarding_complete = True
-
 def show_recent_searches_panel():
     """Display quick access panel for recent searches"""
     from search_history import get_user_search_history
@@ -350,60 +321,9 @@ def load_previous_search(search_data):
 def show_search_interface():
     """Display the main search interface using modular components"""
     st.markdown(get_dashboard_styles(), unsafe_allow_html=True)
-    
-    # Show tour if active
-    if st.session_state.get('show_tour', False):
-        step = st.session_state.get('tour_step', 1)
-        
-        if step == 1:
-            show_tour_step(1, "Welcome to Fetchster", 
-                          "This powerful tool helps you find business emails using Google Maps and Search. Let's take a quick tour!")
-        elif step == 2:
-            show_tour_step(2, "Search Settings", 
-                          "Enter keywords like 'restaurant', 'dentist', or 'coworking space' to find businesses.")
-        elif step == 3:
-            show_tour_step(3, "Location Selection", 
-                          "Choose specific countries, states/provinces, and cities for targeted searches.")
-        elif step == 4:
-            show_tour_step(4, "Search Sources", 
-                          "We search Google Maps for business listings and Google Search for company websites.")
-        elif step == 5:
-            show_tour_step(5, "Results & Analytics", 
-                          "View found emails, business names, and download results as CSV for your use.")
-        elif step == 6:
-            show_tour_step(6, "Account Features", 
-                          "Access your search history, manage subscriptions, and save favorite keywords.")
-        
-        # Tour navigation
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col1:
-            if step > 1 and st.button("Previous", key="tour_prev"):
-                st.session_state.tour_step -= 1
-                st.rerun()
-        with col2:
-            if st.button("Skip Tour", key="tour_skip"):
-                complete_tour()
-                st.rerun()
-        with col3:
-            if st.button("Next", key="tour_next"):
-                next_tour_step()
-                st.rerun()
-        
-        st.markdown("---")
-    
-    # Header
-    st.markdown("# Welcome to Fetchster")
-    st.markdown("**Email harvesting and social discovery — internal tool**")
 
-    # Tour starter for new users
-    if not st.session_state.get('onboarding_complete', False) and not st.session_state.get('show_tour', False):
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.info("New to Fetchster? Take our quick tour to get started!")
-        with col2:
-            if st.button("Start Tour", key="main_tour_button"):
-                start_onboarding_tour()
-                st.rerun()
+    st.markdown("# Fetchster")
+    st.markdown("**Email harvesting and social discovery — internal tool**")
 
     tab_google, tab_instagram = st.tabs(["Google (email harvesting)", "Instagram"])
 

@@ -5,12 +5,11 @@ Streamlined Search Interface - Simple and intuitive for first-time users
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict
 from auth import (
-    can_perform_search, 
-    update_search_count, 
-    save_search_history,
-    get_user_api_key
+    can_perform_search,
+    update_search_count,
+    get_user_api_key,
 )
 from new_search_engine import find_emails_new
 
