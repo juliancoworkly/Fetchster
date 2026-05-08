@@ -126,15 +126,17 @@ class IGClient:
         return result
 
     def search_users(self, keyword: str, limit: int = 20) -> list[UserSummary]:
-        # instagrapi's search_users takes only `query` — we cap with results[:limit] below.
+        # instagrapi's search_users takes only `query` and returns UserShort
+        # objects, which omit fields like is_verified / is_private — guard
+        # every read with getattr so the wrapper survives those omissions.
         results = self._call("search_users", self.client.search_users, keyword)
         return [
             UserSummary(
                 pk=str(u.pk),
                 username=u.username,
-                full_name=u.full_name or "",
-                is_private=bool(u.is_private),
-                is_verified=bool(u.is_verified),
+                full_name=getattr(u, "full_name", "") or "",
+                is_private=bool(getattr(u, "is_private", False)),
+                is_verified=bool(getattr(u, "is_verified", False)),
                 profile_pic_url=str(u.profile_pic_url) if getattr(u, "profile_pic_url", None) else None,
             )
             for u in results[:limit]
@@ -147,13 +149,13 @@ class IGClient:
         return Profile(
             pk=str(info.pk),
             username=info.username,
-            full_name=info.full_name or "",
-            biography=info.biography or "",
-            follower_count=int(info.follower_count or 0),
-            following_count=int(info.following_count or 0),
-            media_count=int(info.media_count or 0),
-            is_private=bool(info.is_private),
-            is_verified=bool(info.is_verified),
+            full_name=getattr(info, "full_name", "") or "",
+            biography=getattr(info, "biography", "") or "",
+            follower_count=int(getattr(info, "follower_count", 0) or 0),
+            following_count=int(getattr(info, "following_count", 0) or 0),
+            media_count=int(getattr(info, "media_count", 0) or 0),
+            is_private=bool(getattr(info, "is_private", False)),
+            is_verified=bool(getattr(info, "is_verified", False)),
             is_business=bool(getattr(info, "is_business", False)),
             category=getattr(info, "category", None) or getattr(info, "category_name", None),
             external_url=str(info.external_url) if getattr(info, "external_url", None) else None,
