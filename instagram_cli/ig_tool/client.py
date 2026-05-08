@@ -160,4 +160,10 @@ class IGClient:
             category=getattr(info, "category", None) or getattr(info, "category_name", None),
             external_url=str(info.external_url) if getattr(info, "external_url", None) else None,
             profile_pic_url=str(info.profile_pic_url) if getattr(info, "profile_pic_url", None) else None,
+            public_email=getattr(info, "public_email", None) or None,
+            contact_phone=(
+                getattr(info, "public_phone_number", None)
+                or getattr(info, "contact_phone_number", None)
+                or None
+            ),
         )

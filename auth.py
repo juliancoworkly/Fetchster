@@ -130,6 +130,27 @@ def ensure_database_schema(conn):
             ON search_history (user_id, created_at DESC)
         """)
         cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ig_profile_cache (
+                username TEXT PRIMARY KEY,
+                payload JSONB NOT NULL,
+                fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ig_search_cache (
+                keyword TEXT NOT NULL,
+                pk TEXT NOT NULL,
+                rank INTEGER NOT NULL,
+                payload JSONB NOT NULL,
+                fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (keyword, pk)
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS ig_search_cache_keyword_rank_idx
+            ON ig_search_cache (keyword, rank)
+        """)
+        cursor.execute("""
             ALTER TABLE user_profiles
             ADD COLUMN IF NOT EXISTS password_hash TEXT,
             ADD COLUMN IF NOT EXISTS full_name TEXT,

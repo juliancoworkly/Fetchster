@@ -42,6 +42,8 @@ class Profile:
     category: str | None = None
     external_url: str | None = None
     profile_pic_url: str | None = None
+    public_email: str | None = None
+    contact_phone: str | None = None
     fetched_at: datetime = field(default_factory=_utcnow)
 
     def to_dict(self) -> dict[str, Any]:
